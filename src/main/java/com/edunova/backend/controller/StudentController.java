@@ -9,7 +9,7 @@ import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:4200")
 @RequiredArgsConstructor
 public class StudentController {
     
@@ -27,13 +27,28 @@ public class StudentController {
     }
     
     @PostMapping("/students")
-    public Mono<StudentDTO> createStudent(@RequestBody CreateStudentDTO dto) {
+    public Mono<ApiResponseDTO<StudentDTO>> createStudent(@RequestBody CreateStudentDTO dto) {
         return service.createStudent(dto);
+    }
+    
+    @PutMapping("/students/{id}")
+    public Mono<ApiResponseDTO<StudentDTO>> updateStudent(@PathVariable Long id, @RequestBody CreateStudentDTO dto) {
+        return service.updateStudent(id, dto);
+    }
+    
+    @DeleteMapping("/students/{id}")
+    public Mono<ApiResponseDTO<Void>> deleteStudent(@PathVariable Long id) {
+        return service.deleteStudent(id);
+    }
+    
+    @PatchMapping("/students/{id}/status")
+    public Mono<ApiResponseDTO<StudentDTO>> updateStatus(@PathVariable Long id, @RequestParam String status) {
+        return service.updateStudentStatus(id, status);
     }
     
     // ========== TARDINESS ENDPOINTS ==========
     @PostMapping("/students/{id}/tardiness")
-    public Mono<TardinessDTO> registerTardiness(
+    public Mono<ApiResponseDTO<TardinessDTO>> registerTardiness(
             @PathVariable Long id,
             @RequestBody RegisterTardinessDTO dto) {
         return service.registerTardiness(id, dto);
@@ -44,42 +59,27 @@ public class StudentController {
         return service.getTardinessDTOByStudent(id);
     }
     
-    @GetMapping("/tardiness")
-    public Flux<TardinessDTO> getAllTardiness() {
-        return service.getAllTardinessDTO();
-    }
-    
     // ========== WARNING ENDPOINTS ==========
     @PostMapping("/students/{id}/warning")
-    public Mono<WarningDTO> registerWarning(
+    public Mono<ApiResponseDTO<WarningDTO>> registerWarning(
             @PathVariable Long id,
             @RequestBody RegisterWarningDTO dto) {
         return service.registerWarning(id, dto);
     }
     
-    @GetMapping("/students/{id}/warnings")
-    public Flux<WarningDTO> getWarningsByStudent(@PathVariable Long id) {
-        return service.getWarningsDTOByStudent(id);
-    }
-    
-    @GetMapping("/warnings")
-    public Flux<WarningDTO> getAllWarnings() {
-        return service.getAllWarningsDTO();
-    }
-    
     // ========== REPORT ENDPOINTS ==========
     @GetMapping("/students/{id}/report")
-    public Mono<ReportDTO> getCompleteReport(@PathVariable Long id) {
+    public Mono<ApiResponseDTO<ReportDTO>> getCompleteReport(@PathVariable Long id) {
         return service.getCompleteReport(id);
     }
     
     @GetMapping("/statistics")
-    public Mono<StatisticsDTO> getStatistics() {
+    public Mono<ApiResponseDTO<StatisticsDTO>> getStatistics() {
         return service.getStatisticsDTO();
     }
     
     @GetMapping("/health")
-    public Mono<ResponseDTO<String>> health() {
-        return Mono.just(ResponseDTO.success("API funcionando correctamente"));
+    public Mono<ApiResponseDTO<String>> health() {
+        return Mono.just(ApiResponseDTO.success("API REST funcionando correctamente. Sistema de control de tardanzas operativo."));
     }
 }
