@@ -1,0 +1,313 @@
+<div class="app-container">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-content">
+      <h1>📚 Edunova</h1>
+      <p>Sistema de Control de Tardanzas y Llamados de Atención</p>
+    </div>
+  </header>
+
+  <!-- Messages -->
+  <div class="messages" *ngIf="message">
+    <div class="alert" [class.alert-success]="message.type === 'success'" [class.alert-error]="message.type === 'error'">
+      {{ message.text }}
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-overlay" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Cargando...</p>
+  </div>
+
+  <div class="main-content">
+    <!-- Statistics Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">👥</div>
+        <div class="stat-info">
+          <h3>Total Estudiantes</h3>
+          <p class="stat-value">{{ statistics?.totalStudents || 0 }}</p>
+        </div>
+      </div>
+      <div class="stat-card success">
+        <div class="stat-icon">✅</div>
+        <div class="stat-info">
+          <h3>Activos</h3>
+          <p class="stat-value">{{ statistics?.activeStudents || 0 }}</p>
+        </div>
+      </div>
+      <div class="stat-card warning">
+        <div class="stat-icon">⚠️</div>
+        <div class="stat-info">
+          <h3>Inactivos</h3>
+          <p class="stat-value">{{ statistics?.inactiveStudents || 0 }}</p>
+        </div>
+      </div>
+      <div class="stat-card danger">
+        <div class="stat-icon">🚫</div>
+        <div class="stat-info">
+          <h3>Suspendidos</h3>
+          <p class="stat-value">{{ statistics?.suspendedStudents || 0 }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Students Table -->
+    <div class="card">
+      <div class="card-header">
+        <h2>📋 Lista de Estudiantes</h2>
+        <button class="btn btn-primary" (click)="openCreateModal()">
+          + Nuevo Estudiante
+        </button>
+      </div>
+      
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>DNI</th>
+              <th>Nombres</th>
+              <th>Apellidos</th>
+              <th>Grado</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let student of students">
+              <td><strong>{{ student.code }}</strong></td>
+              <td>{{ student.dni }}</td>
+              <td>{{ student.firstName }}</td>
+              <td>{{ student.lastName }} {{ student.motherLastName }}</td>
+              <td>{{ student.grade }}° "{{ student.section }}"</td>
+              <td>
+                <span class="status-badge" [class]="getStatusClass(student.status)">
+                  {{ getStatusText(student.status) }}
+                </span>
+              </td>
+              <td class="actions">
+                <button class="btn-sm btn-info" (click)="viewStudent(student)">Ver</button>
+                <button class="btn-sm btn-warning" (click)="updateStatus(student, 'A')" *ngIf="student.status !== 'A'">Activar</button>
+                <button class="btn-sm btn-warning" (click)="updateStatus(student, 'I')" *ngIf="student.status === 'A'">Inactivar</button>
+                <button class="btn-sm btn-danger" (click)="deleteStudent(student)">Eliminar</button>
+              </td>
+            </tr>
+            <tr *ngIf="students.length === 0">
+              <td colspan="7" class="text-center">No hay estudiantes registrados</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Create Student -->
+  <div class="modal" *ngIf="showCreateModal" (click)="closeCreateModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Registrar Nuevo Estudiante</h2>
+        <button class="close-btn" (click)="closeCreateModal()">&times;</button>
+      </div>
+      <form (ngSubmit)="createStudent()">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Código *</label>
+            <input type="text" [(ngModel)]="newStudent.code" name="code" required>
+          </div>
+          <div class="form-group">
+            <label>DNI *</label>
+            <input type="text" [(ngModel)]="newStudent.dni" name="dni" required pattern="[0-9]{8}">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nombres *</label>
+            <input type="text" [(ngModel)]="newStudent.firstName" name="firstName" required>
+          </div>
+          <div class="form-group">
+            <label>Apellido Paterno *</label>
+            <input type="text" [(ngModel)]="newStudent.lastName" name="lastName" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Apellido Materno</label>
+            <input type="text" [(ngModel)]="newStudent.motherLastName" name="motherLastName">
+          </div>
+          <div class="form-group">
+            <label>Email *</label>
+            <input type="email" [(ngModel)]="newStudent.email" name="email" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Teléfono</label>
+            <input type="text" [(ngModel)]="newStudent.phone" name="phone" pattern="9[0-9]{8}">
+          </div>
+          <div class="form-group">
+            <label>Grado *</label>
+            <select [(ngModel)]="newStudent.grade" name="grade">
+              <option value="1">1ro</option>
+              <option value="2">2do</option>
+              <option value="3">3ro</option>
+              <option value="4">4to</option>
+              <option value="5">5to</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Sección *</label>
+            <input type="text" [(ngModel)]="newStudent.section" name="section" maxlength="2" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeCreateModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary" [disabled]="loading">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Student Detail -->
+  <div class="modal modal-large" *ngIf="showDetailModal && selectedStudent" (click)="closeDetailModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Detalle del Estudiante</h2>
+        <button class="close-btn" (click)="closeDetailModal()">&times;</button>
+      </div>
+      
+      <div class="student-info">
+        <div class="info-grid">
+          <div><strong>Código:</strong> {{ selectedStudent.code }}</div>
+          <div><strong>DNI:</strong> {{ selectedStudent.dni }}</div>
+          <div><strong>Nombres:</strong> {{ selectedStudent.firstName }}</div>
+          <div><strong>Apellidos:</strong> {{ selectedStudent.lastName }} {{ selectedStudent.motherLastName }}</div>
+          <div><strong>Email:</strong> {{ selectedStudent.email }}</div>
+          <div><strong>Teléfono:</strong> {{ selectedStudent.phone || '-' }}</div>
+          <div><strong>Grado:</strong> {{ selectedStudent.grade }}° "{{ selectedStudent.section }}"</div>
+          <div><strong>Estado:</strong> <span class="status-badge" [class]="getStatusClass(selectedStudent.status)">{{ getStatusText(selectedStudent.status) }}</span></div>
+        </div>
+      </div>
+
+      <div class="detail-actions">
+        <button class="btn btn-primary" (click)="openTardinessModal()">Registrar Tardanza</button>
+        <button class="btn btn-warning" (click)="openWarningModal()">Registrar Llamado</button>
+      </div>
+
+      <div class="detail-section">
+        <h3>Historial de Tardanzas</h3>
+        <table class="subtable">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Hora</th>
+              <th>Minutos</th>
+              <th>Justificada</th>
+              <th>Motivo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let t of studentTardiness">
+              <td>{{ t.date | date:'dd/MM/yyyy' }}</td>
+              <td>{{ t.arrivalTime }}</td>
+              <td>{{ t.minutesLate }}</td>
+              <td>{{ t.justified ? 'Sí' : 'No' }}</td>
+              <td>{{ t.reason || '-' }}</td>
+            </tr>
+            <tr *ngIf="studentTardiness.length === 0">
+              <td colspan="5" class="text-center">No hay tardanzas registradas</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="detail-section">
+        <h3>Historial de Llamados de Atención</h3>
+        <table class="subtable">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Tipo</th>
+              <th>Motivo</th>
+              <th>Registrado por</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let w of studentWarnings">
+              <td>{{ w.date | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td><span class="warning-badge">{{ getWarningTypeText(w.type) }}</span></td>
+              <td>{{ w.reason }}</td>
+              <td>{{ w.registeredBy }}</td>
+            </tr>
+            <tr *ngIf="studentWarnings.length === 0">
+              <td colspan="4" class="text-center">No hay llamados registrados</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeDetailModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Register Tardiness -->
+  <div class="modal" *ngIf="showTardinessModal" (click)="closeTardinessModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Registrar Tardanza</h2>
+        <button class="close-btn" (click)="closeTardinessModal()">&times;</button>
+      </div>
+      <form (ngSubmit)="registerTardiness()">
+        <div class="form-group">
+          <label>Minutos de tardanza *</label>
+          <input type="number" [(ngModel)]="tardinessForm.minutes" name="minutes" required min="1" max="60">
+        </div>
+        <div class="form-group">
+          <label>Motivo</label>
+          <textarea [(ngModel)]="tardinessForm.reason" name="reason" rows="3" placeholder="Opcional"></textarea>
+        </div>
+        <div class="form-group checkbox">
+          <label>
+            <input type="checkbox" [(ngModel)]="tardinessForm.justified" name="justified">
+            ¿Justificada?
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeTardinessModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary" [disabled]="loading">Registrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Register Warning -->
+  <div class="modal" *ngIf="showWarningModal" (click)="closeWarningModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Registrar Llamado de Atención</h2>
+        <button class="close-btn" (click)="closeWarningModal()">&times;</button>
+      </div>
+      <form (ngSubmit)="registerWarning()">
+        <div class="form-group">
+          <label>Tipo de Llamado *</label>
+          <select [(ngModel)]="warningForm.type" name="type">
+            <option value="L">LEVE</option>
+            <option value="G">GRAVE</option>
+            <option value="M">MUY GRAVE</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Motivo *</label>
+          <textarea [(ngModel)]="warningForm.reason" name="reason" rows="3" required></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeWarningModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary" [disabled]="loading">Registrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
