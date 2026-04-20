@@ -9,13 +9,16 @@ services:
       POSTGRES_PASSWORD: secret123
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
     networks:
       - edunova-network
     deploy:
       replicas: 1
+      placement:
+        constraints: [node.role == manager]
 
   backend:
-    build: .
+    image: edunova-backend:latest
     ports:
       - "8080:8080"
     environment:
@@ -24,6 +27,8 @@ services:
       SPRING_R2DBC_PASSWORD: secret123
     networks:
       - edunova-network
+    depends_on:
+      - database
     deploy:
       replicas: 2
       restart_policy:
