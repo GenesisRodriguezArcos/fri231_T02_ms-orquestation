@@ -1,19 +1,14 @@
 package com.edunova.backend.service;
 
-import com.edunova.backend.model.Student;
-import com.edunova.backend.model.Tardiness;
-import com.edunova.backend.model.Warning;
-import com.edunova.backend.repository.StudentRepository;
-import com.edunova.backend.repository.TardinessRepository;
-import com.edunova.backend.repository.WarningRepository;
+import com.edunova.backend.dto.*;
+import com.edunova.backend.model.*;
+import com.edunova.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.HashMap;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -23,102 +18,167 @@ public class StudentService {
     private final TardinessRepository tardinessRepository;
     private final WarningRepository warningRepository;
     
-    // ========== STUDENTS ==========
-    public Flux<Student> findAll() {
-        return studentRepository.findAllByOrderById();
+    // ========== STUDENT DTO METHODS ==========
+    public Flux<StudentDTO> findAllDTO() {
+        return studentRepository.findAllByOrderById()
+            .map(this::convertToDTO);
     }
     
-    public Mono<Student> findById(Long id) {
-        return studentRepository.findById(id);
-    }
-    
-    public Mono<Student> save(Student student) {
-        return studentRepository.save(student);
-    }
-    
-    public Mono<Student> updateStatus(Long id, String status) {
+    public Mono<StudentDTO> findDTOById(Long id) {
         return studentRepository.findById(id)
-            .flatMap(student -> {
-                student.setStatus(status);
-                return studentRepository.save(student);
-            });
+            .map(this::convertToDTO);
     }
     
-    public Flux<Student> findByStatus(String status) {
-        return studentRepository.findByStatusOrderById(status);
+    public Mono<StudentDTO> createStudent(CreateStudentDTO dto) {
+        Student student = new Student();
+        student.setCode(dto.getCode());
+        student.setDni(dto.getDni());
+        student.setFirstName(dto.getFirstName());
+        student.setLastName(dto.getLastName());
+        student.setMotherLastName(dto.getMotherLastName());
+        student.setEmail(dto.getEmail());
+        student.setPhone(dto.getPhone());
+        student.setGrade(dto.getGrade());
+        student.setSection(dto.getSection());
+        student.setStatus("A");
+        student.setRegistrationDate(LocalDateTime.now());
+        
+        return studentRepository.save(student)
+            .map(this::convertToDTO);
     }
     
-    // ========== TARDINESS ==========
-    public Mono<Tardiness> registerTardiness(Long studentId, Integer minutes, String reason, Boolean justified) {
+    // ========== TARDINESS DTO METHODS ==========
+    public Mono<TardinessDTO> registerTardiness(Long studentId, RegisterTardinessDTO dto) {
         Tardiness tardiness = new Tardiness();
         tardiness.setStudentId(studentId);
         tardiness.setDate(LocalDateTime.now());
         tardiness.setArrivalTime(LocalTime.now());
-        tardiness.setMinutesLate(minutes);
-        tardiness.setReason(reason);
-        tardiness.setJustified(justified != null ? justified : false);
+        tardiness.setMinutesLate(dto.getMinutes());
+        tardiness.setReason(dto.getReason());
+        tardiness.setJustified(dto.getJustified() != null ? dto.getJustified() : false);
         tardiness.setRegisteredBy("SYSTEM");
         
-        return tardinessRepository.save(tardiness);
+        return tardinessRepository.save(tardiness)
+            .flatMap(saved -> findDTOById(studentId)
+                .map(studentDTO -> convertToTardinessDTO(saved, studentDTO)));
     }
     
-    public Flux<Tardiness> getTardinessByStudent(Long studentId) {
-        return tardinessRepository.findByStudentIdOrderByDateDesc(studentId);
+    public Flux<TardinessDTO> getTardinessDTOByStudent(Long studentId) {
+        return findDTOById(studentId)
+            .flatMapMany(studentDTO -> tardinessRepository.findByStudentIdOrderByDateDesc(studentId)
+                .map(tardiness -> convertToTardinessDTO(tardiness, studentDTO)));
     }
     
-    public Flux<Tardiness> getAllTardiness() {
-        return tardinessRepository.findAllByOrderByDateDesc();
+    public Flux<TardinessDTO> getAllTardinessDTO() {
+        return tardinessRepository.findAllByOrderByDateDesc()
+            .flatMap(tardiness -> findDTOById(tardiness.getStudentId())
+                .map(studentDTO -> convertToTardinessDTO(tardiness, studentDTO)));
     }
     
-    // ========== WARNINGS ==========
-    public Mono<Warning> registerWarning(Long studentId, String type, String reason) {
+    // ========== WARNING DTO METHODS ==========
+    public Mono<WarningDTO> registerWarning(Long studentId, RegisterWarningDTO dto) {
         Warning warning = new Warning();
         warning.setStudentId(studentId);
         warning.setDate(LocalDateTime.now());
-        warning.setType(type);
-        warning.setReason(reason);
+        warning.setType(dto.getType());
+        warning.setReason(dto.getReason());
         warning.setRegisteredBy("SYSTEM");
         
-        return warningRepository.save(warning);
+        return warningRepository.save(warning)
+            .flatMap(saved -> findDTOById(studentId)
+                .map(studentDTO -> convertToWarningDTO(saved, studentDTO)));
     }
     
-    public Flux<Warning> getWarningsByStudent(Long studentId) {
-        return warningRepository.findByStudentIdOrderByDateDesc(studentId);
+    public Flux<WarningDTO> getWarningsDTOByStudent(Long studentId) {
+        return findDTOById(studentId)
+            .flatMapMany(studentDTO -> warningRepository.findByStudentIdOrderByDateDesc(studentId)
+                .map(warning -> convertToWarningDTO(warning, studentDTO)));
     }
     
-    public Flux<Warning> getAllWarnings() {
-        return warningRepository.findAllByOrderByDateDesc();
+    public Flux<WarningDTO> getAllWarningsDTO() {
+        return warningRepository.findAllByOrderByDateDesc()
+            .flatMap(warning -> findDTOById(warning.getStudentId())
+                .map(studentDTO -> convertToWarningDTO(warning, studentDTO)));
     }
     
-    // ========== REPORTS ==========
-    public Mono<Map<String, Object>> getCompleteReport(Long studentId) {
-        return studentRepository.findById(studentId)
-            .flatMap(student -> 
+    // ========== REPORT METHODS ==========
+    public Mono<ReportDTO> getCompleteReport(Long studentId) {
+        return findDTOById(studentId)
+            .flatMap(studentDTO -> 
                 tardinessRepository.findByStudentIdOrderByDateDesc(studentId)
                     .collectList()
                     .zipWith(warningRepository.findByStudentIdOrderByDateDesc(studentId).collectList())
                     .map(tuple -> {
-                        Map<String, Object> report = new HashMap<>();
-                        report.put("student", student);
-                        report.put("total_tardiness", tuple.getT1().size());
-                        report.put("tardiness_records", tuple.getT1());
-                        report.put("total_warnings", tuple.getT2().size());
-                        report.put("warning_records", tuple.getT2());
+                        ReportDTO report = new ReportDTO();
+                        report.setStudent(studentDTO);
+                        report.setTotalTardiness(tuple.getT1().size());
+                        report.setTardinessRecords(tuple.getT1());
+                        report.setTotalWarnings(tuple.getT2().size());
+                        report.setWarningRecords(tuple.getT2());
                         return report;
                     })
             );
     }
     
-    public Mono<Map<String, Object>> getStatistics() {
+    public Mono<StatisticsDTO> getStatisticsDTO() {
         return studentRepository.count()
             .zipWith(tardinessRepository.count())
             .zipWith(warningRepository.count())
+            .zipWith(studentRepository.findByStatusOrderById("A").count())
+            .zipWith(studentRepository.findByStatusOrderById("I").count())
             .map(tuple -> {
-                Map<String, Object> stats = new HashMap<>();
-                stats.put("total_students", tuple.getT1().getT1());
-                stats.put("total_tardiness", tuple.getT1().getT2());
-                stats.put("total_warnings", tuple.getT2());
+                StatisticsDTO stats = new StatisticsDTO();
+                stats.setTotalStudents(tuple.getT1().getT1().getT1().getT1());
+                stats.setTotalTardiness(tuple.getT1().getT1().getT1().getT2());
+                stats.setTotalWarnings(tuple.getT1().getT1().getT2());
+                stats.setActiveStudents(tuple.getT1().getT2());
+                stats.setInactiveStudents(tuple.getT2());
+                stats.setSuspendedStudents(0L);
                 return stats;
             });
+    }
+    
+    // ========== CONVERTERS ==========
+    private StudentDTO convertToDTO(Student student) {
+        return new StudentDTO(
+            student.getId(), student.getCode(), student.getDni(),
+            student.getFirstName(), student.getLastName(), student.getMotherLastName(),
+            student.getEmail(), student.getPhone(), student.getGrade(),
+            student.getSection(), student.getStatus()
+        );
+    }
+    
+    private TardinessDTO convertToTardinessDTO(Tardiness tardiness, StudentDTO student) {
+        TardinessDTO dto = new TardinessDTO();
+        dto.setId(tardiness.getId());
+        dto.setStudentId(tardiness.getStudentId());
+        dto.setStudentName(student.getFirstName() + " " + student.getLastName());
+        dto.setDate(tardiness.getDate());
+        dto.setArrivalTime(tardiness.getArrivalTime());
+        dto.setMinutesLate(tardiness.getMinutesLate());
+        dto.setJustified(tardiness.getJustified());
+        dto.setReason(tardiness.getReason());
+        return dto;
+    }
+    
+    private WarningDTO convertToWarningDTO(Warning warning, StudentDTO student) {
+        WarningDTO dto = new WarningDTO();
+        dto.setId(warning.getId());
+        dto.setStudentId(warning.getStudentId());
+        dto.setStudentName(student.getFirstName() + " " + student.getLastName());
+        dto.setDate(warning.getDate());
+        dto.setType(warning.getType());
+        dto.setTypeDescription(getTypeDescription(warning.getType()));
+        dto.setReason(warning.getReason());
+        return dto;
+    }
+    
+    private String getTypeDescription(String type) {
+        switch(type) {
+            case "L": return "LEVE";
+            case "G": return "GRAVE";
+            case "M": return "MUY GRAVE";
+            default: return "DESCONOCIDO";
+        }
     }
 }

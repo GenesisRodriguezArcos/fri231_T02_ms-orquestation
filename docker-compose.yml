@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  database:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: edunova
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - edunova-network
+    deploy:
+      replicas: 1
+
+  backend:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_R2DBC_URL: r2dbc:postgresql://database:5432/edunova
+      SPRING_R2DBC_USERNAME: admin
+      SPRING_R2DBC_PASSWORD: secret123
+    networks:
+      - edunova-network
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+
+networks:
+  edunova-network:
+    driver: overlay
+
+volumes:
+  postgres_data:
+    driver: local
