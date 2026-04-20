@@ -3,7 +3,7 @@ spring:
     name: edunova-backend
   
   r2dbc:
-    url: r2dbc:postgresql://database:5432/edunova
+    url: r2dbc:postgresql://localhost:5432/edunova
     username: admin
     password: secret123
     
@@ -15,7 +15,6 @@ spring:
 logging:
   level:
     com.edunova: DEBUG
-    org.springframework.r2dbc: DEBUG
 
 server:
   port: 8080
