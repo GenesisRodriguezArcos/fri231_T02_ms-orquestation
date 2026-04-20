@@ -1,0 +1,3 @@
+-- Schema already exists in DBeaver
+-- This file is intentionally empty
+-- Tables: students, tardiness, warnings are already created manually

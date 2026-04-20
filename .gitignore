@@ -1,0 +1,4 @@
+
+# Ignorar solo node_modules del backend
+target/
+.idea/
