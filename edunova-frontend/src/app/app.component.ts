@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import Swal from 'sweetalert2';
 import { StudentService } from './services/student.service';
 import { Student, Statistics, Tardiness, Warning } from './models/student.model';
 
@@ -14,10 +15,11 @@ import { Student, Statistics, Tardiness, Warning } from './models/student.model'
 export class AppComponent implements OnInit {
   private studentService = inject(StudentService);
   
-  title = 'Edunova - Sistema de Control de Tardanzas';
+  title = 'Edunova - Control de Tardanzas';
   
   // Data
-  students: Student[] = [];
+  allStudents: Student[] = [];
+  filteredStudents: Student[] = [];
   statistics: Statistics | null = null;
   selectedStudent: Student | null = null;
   studentTardiness: Tardiness[] = [];
@@ -29,7 +31,9 @@ export class AppComponent implements OnInit {
   showDetailModal = false;
   showTardinessModal = false;
   showWarningModal = false;
-  message: { text: string; type: 'success' | 'error' } | null = null;
+  
+  // Filter
+  currentFilter: string = 'active';
   
   // Forms
   newStudent = {
@@ -68,11 +72,12 @@ export class AppComponent implements OnInit {
     this.loading = true;
     this.studentService.getStudents().subscribe({
       next: (data) => {
-        this.students = data;
+        this.allStudents = data;
+        this.applyFilter();
         this.loading = false;
       },
       error: (err) => {
-        this.showMessage('Error al cargar estudiantes: ' + err.message, 'error');
+        Swal.fire('Error', 'Error al cargar estudiantes: ' + err.message, 'error');
         this.loading = false;
       }
     });
@@ -87,6 +92,33 @@ export class AppComponent implements OnInit {
       },
       error: (err) => console.error('Error loading statistics:', err)
     });
+  }
+
+  applyFilter(): void {
+    switch(this.currentFilter) {
+      case 'active':
+        this.filteredStudents = this.allStudents.filter(s => s.status === 'A');
+        break;
+      case 'inactive':
+        this.filteredStudents = this.allStudents.filter(s => s.status === 'I');
+        break;
+      case 'suspended':
+        this.filteredStudents = this.allStudents.filter(s => s.status === 'S');
+        break;
+      case 'all':
+      default:
+        this.filteredStudents = [...this.allStudents];
+        break;
+    }
+  }
+
+  setFilter(filter: string): void {
+    this.currentFilter = filter;
+    this.applyFilter();
+  }
+
+  getFilterCount(status: string): number {
+    return this.allStudents.filter(s => s.status === status).length;
   }
 
   viewStudent(student: Student): void {
@@ -112,7 +144,7 @@ export class AppComponent implements OnInit {
     this.studentService.createStudent(this.newStudent).subscribe({
       next: (response) => {
         if (response.success) {
-          this.showMessage(response.message, 'success');
+          Swal.fire('Exito', response.message, 'success');
           this.loadStudents();
           this.loadStatistics();
           this.closeCreateModal();
@@ -121,7 +153,7 @@ export class AppComponent implements OnInit {
         this.loading = false;
       },
       error: (err) => {
-        this.showMessage(err.error?.message || 'Error al crear estudiante', 'error');
+        Swal.fire('Error', err.error?.message || 'Error al crear estudiante', 'error');
         this.loading = false;
       }
     });
@@ -139,7 +171,7 @@ export class AppComponent implements OnInit {
     ).subscribe({
       next: (response) => {
         if (response.success) {
-          this.showMessage(response.message, 'success');
+          Swal.fire('Exito', response.message, 'success');
           this.loadStudentDetails(this.selectedStudent!.id);
           this.loadStatistics();
           this.closeTardinessModal();
@@ -147,7 +179,7 @@ export class AppComponent implements OnInit {
         this.loading = false;
       },
       error: (err) => {
-        this.showMessage(err.error?.message || 'Error al registrar tardanza', 'error');
+        Swal.fire('Error', err.error?.message || 'Error al registrar tardanza', 'error');
         this.loading = false;
       }
     });
@@ -164,7 +196,7 @@ export class AppComponent implements OnInit {
     ).subscribe({
       next: (response) => {
         if (response.success) {
-          this.showMessage(response.message, 'success');
+          Swal.fire('Exito', response.message, 'success');
           this.loadStudentDetails(this.selectedStudent!.id);
           this.loadStatistics();
           this.closeWarningModal();
@@ -172,40 +204,77 @@ export class AppComponent implements OnInit {
         this.loading = false;
       },
       error: (err) => {
-        this.showMessage(err.error?.message || 'Error al registrar llamado', 'error');
+        Swal.fire('Error', err.error?.message || 'Error al registrar llamado', 'error');
         this.loading = false;
       }
     });
   }
 
-  updateStatus(student: Student, status: string): void {
-    const statusText = status === 'A' ? 'activar' : status === 'I' ? 'inactivar' : 'suspender';
-    if (confirm(`¿Está seguro de ${statusText} a ${student.firstName} ${student.lastName}?`)) {
-      this.loading = true;
-      this.studentService.updateStatus(student.id, status).subscribe({
-        next: (response) => {
-          if (response.success) {
-            this.showMessage(response.message, 'success');
-            this.loadStudents();
-            this.loadStatistics();
-          }
-          this.loading = false;
-        },
-        error: (err) => {
-          this.showMessage(err.error?.message || 'Error al cambiar estado', 'error');
-          this.loading = false;
-        }
-      });
+  async inactivateStudent(student: Student): Promise<void> {
+    const result = await Swal.fire({
+      title: '¿Inactivar estudiante?',
+      text: `¿Deseas inactivar a ${student.firstName} ${student.lastName}?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#ffc107',
+      confirmButtonText: 'Si, inactivar',
+      cancelButtonText: 'Cancelar'
+    });
+    
+    if (result.isConfirmed) {
+      this.updateStatus(student, 'I', 'inactivado');
     }
   }
 
-  deleteStudent(student: Student): void {
-    if (confirm(`¿Eliminar a ${student.firstName} ${student.lastName}? Esta acción no se puede deshacer.`)) {
+  async suspendStudent(student: Student): Promise<void> {
+    const result = await Swal.fire({
+      title: '¿Suspender estudiante?',
+      text: `¿Deseas suspender a ${student.firstName} ${student.lastName}?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      confirmButtonText: 'Si, suspender',
+      cancelButtonText: 'Cancelar'
+    });
+    
+    if (result.isConfirmed) {
+      this.updateStatus(student, 'S', 'suspendido');
+    }
+  }
+
+  async activateStudent(student: Student): Promise<void> {
+    const result = await Swal.fire({
+      title: '¿Activar estudiante?',
+      text: `¿Deseas activar a ${student.firstName} ${student.lastName}?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#28a745',
+      confirmButtonText: 'Si, activar',
+      cancelButtonText: 'Cancelar'
+    });
+    
+    if (result.isConfirmed) {
+      this.updateStatus(student, 'A', 'activado');
+    }
+  }
+
+  async deleteStudent(student: Student): Promise<void> {
+    const result = await Swal.fire({
+      title: '¿Eliminar estudiante?',
+      text: `¿Deseas eliminar a ${student.firstName} ${student.lastName}? Esta accion no se puede deshacer.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      confirmButtonText: 'Si, eliminar',
+      cancelButtonText: 'Cancelar'
+    });
+    
+    if (result.isConfirmed) {
       this.loading = true;
       this.studentService.deleteStudent(student.id).subscribe({
         next: (response) => {
           if (response.success) {
-            this.showMessage(response.message, 'success');
+            Swal.fire('Eliminado', response.message, 'success');
             this.loadStudents();
             this.loadStatistics();
             if (this.selectedStudent?.id === student.id) {
@@ -215,11 +284,32 @@ export class AppComponent implements OnInit {
           this.loading = false;
         },
         error: (err) => {
-          this.showMessage(err.error?.message || 'Error al eliminar estudiante', 'error');
+          Swal.fire('Error', err.error?.message || 'Error al eliminar estudiante', 'error');
           this.loading = false;
         }
       });
     }
+  }
+
+  private updateStatus(student: Student, status: string, action: string): void {
+    this.loading = true;
+    this.studentService.updateStatus(student.id, status).subscribe({
+      next: (response) => {
+        if (response.success) {
+          Swal.fire('Exito', response.message, 'success');
+          this.loadStudents();
+          this.loadStatistics();
+          if (this.selectedStudent?.id === student.id) {
+            this.selectedStudent.status = status;
+          }
+        }
+        this.loading = false;
+      },
+      error: (err) => {
+        Swal.fire('Error', err.error?.message || `Error al ${action} estudiante`, 'error');
+        this.loading = false;
+      }
+    });
   }
 
   getStatusText(status: string): string {
@@ -227,19 +317,9 @@ export class AppComponent implements OnInit {
     return statusMap[status] || 'DESCONOCIDO';
   }
 
-  getStatusClass(status: string): string {
-    const classMap: Record<string, string> = { A: 'status-active', I: 'status-inactive', S: 'status-suspended' };
-    return classMap[status] || '';
-  }
-
   getWarningTypeText(type: string): string {
     const typeMap: Record<string, string> = { L: 'LEVE', G: 'GRAVE', M: 'MUY GRAVE' };
     return typeMap[type] || type;
-  }
-
-  showMessage(text: string, type: 'success' | 'error'): void {
-    this.message = { text, type };
-    setTimeout(() => { this.message = null; }, 5000);
   }
 
   resetForms(): void {
