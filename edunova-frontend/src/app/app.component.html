@@ -10,31 +10,19 @@
     <div class="stats-grid">
       <div class="stat-card" [class.active]="currentFilter === 'all'" (click)="setFilter('all')">
         <div class="stat-icon"><i class="bi bi-people"></i></div>
-        <div class="stat-info">
-          <h3>Total</h3>
-          <p class="stat-value">{{ statistics?.totalStudents || 0 }}</p>
-        </div>
+        <div class="stat-info"><h3>Total</h3><p class="stat-value">{{ statistics?.totalStudents || 0 }}</p></div>
       </div>
       <div class="stat-card success" [class.active]="currentFilter === 'active'" (click)="setFilter('active')">
         <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
-        <div class="stat-info">
-          <h3>Activos</h3>
-          <p class="stat-value">{{ statistics?.activeStudents || 0 }}</p>
-        </div>
+        <div class="stat-info"><h3>Activos</h3><p class="stat-value">{{ statistics?.activeStudents || 0 }}</p></div>
       </div>
       <div class="stat-card warning" [class.active]="currentFilter === 'inactive'" (click)="setFilter('inactive')">
         <div class="stat-icon"><i class="bi bi-ban"></i></div>
-        <div class="stat-info">
-          <h3>Inactivos</h3>
-          <p class="stat-value">{{ statistics?.inactiveStudents || 0 }}</p>
-        </div>
+        <div class="stat-info"><h3>Desactivados</h3><p class="stat-value">{{ statistics?.inactiveStudents || 0 }}</p></div>
       </div>
       <div class="stat-card danger" [class.active]="currentFilter === 'suspended'" (click)="setFilter('suspended')">
         <div class="stat-icon"><i class="bi bi-shield-exclamation"></i></div>
-        <div class="stat-info">
-          <h3>Suspendidos</h3>
-          <p class="stat-value">{{ statistics?.suspendedStudents || 0 }}</p>
-        </div>
+        <div class="stat-info"><h3>Suspendidos</h3><p class="stat-value">{{ statistics?.suspendedStudents || 0 }}</p></div>
       </div>
     </div>
 
@@ -46,261 +34,99 @@
       
       <div class="table-container">
         <table class="students-table">
-          <thead>
-            <tr>
-              <th>Codigo</th>
-              <th>DNI</th>
-              <th>Nombres</th>
-              <th>Apellidos</th>
-              <th>Grado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Codigo</th><th>DNI</th><th>Nombres</th><th>Apellidos</th><th>Grado</th><th>Seccion</th><th>Acciones</th></tr></thead>
           <tbody>
             <tr *ngFor="let student of filteredStudents">
               <td><strong>{{ student.code }}</strong></td>
               <td>{{ student.dni }}</td>
               <td>{{ student.firstName }}</td>
               <td>{{ student.lastName }} {{ student.motherLastName }}</td>
-              <td>{{ student.grade }}° "{{ student.section }}"</td>
+              <td>{{ student.grade }}°</td>
+              <td>{{ student.section }}</td>
               <td class="action-buttons">
-                <button class="action-btn view" (click)="viewStudent(student)" title="Ver detalles">
-                  <i class="bi bi-eye"></i>
-                </button>
-                
+                <button class="action-btn view" (click)="viewStudent(student)" title="Ver"><i class="bi bi-eye"></i></button>
+                <button class="action-btn edit" (click)="openEditModal(student)" title="Editar"><i class="bi bi-pencil"></i></button>
                 <ng-container *ngIf="student.status === 'A'">
-                  <button class="action-btn inactivate" (click)="inactivateStudent(student)" title="Inactivar">
-                    <i class="bi bi-ban"></i>
-                  </button>
-                  <button class="action-btn suspend" (click)="suspendStudent(student)" title="Suspender">
-                    <i class="bi bi-shield-exclamation"></i>
-                  </button>
+                  <button class="action-btn deactivate" (click)="desactivarStudent(student)" title="Desactivar"><i class="bi bi-ban"></i></button>
+                  <button class="action-btn suspend" (click)="suspenderStudent(student)" title="Suspender"><i class="bi bi-shield-exclamation"></i></button>
                 </ng-container>
-                
-                <ng-container *ngIf="student.status === 'I'">
-                  <button class="action-btn restore" (click)="activateStudent(student)" title="Activar">
-                    <i class="bi bi-arrow-repeat"></i>
-                  </button>
-                  <button class="action-btn delete" (click)="deleteStudent(student)" title="Eliminar">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </ng-container>
-                
-                <ng-container *ngIf="student.status === 'S'">
-                  <button class="action-btn restore" (click)="activateStudent(student)" title="Activar">
-                    <i class="bi bi-arrow-repeat"></i>
-                  </button>
-                  <button class="action-btn delete" (click)="deleteStudent(student)" title="Eliminar">
-                    <i class="bi bi-trash"></i>
-                  </button>
+                <ng-container *ngIf="student.status === 'I' || student.status === 'S'">
+                  <button class="action-btn activate" (click)="activarStudent(student)" title="Activar"><i class="bi bi-check-circle"></i></button>
+                  <button class="action-btn delete" (click)="eliminarStudent(student)" title="Eliminar"><i class="bi bi-trash"></i></button>
                 </ng-container>
               </td>
             </tr>
-            <tr *ngIf="filteredStudents.length === 0">
-              <td colspan="6" class="text-center">
-                <i class="bi bi-inbox"></i> No hay estudiantes en esta categoria
-              </td>
-            </tr>
+            <tr *ngIf="filteredStudents.length === 0"><td colspan="7" class="text-center">No hay estudiantes</td></tr>
           </tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- Modal: Create Student -->
-  <div class="modal" *ngIf="showCreateModal" (click)="closeCreateModal()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h2><i class="bi bi-person-plus"></i> Registrar Nuevo Estudiante</h2>
-        <button class="close-btn" (click)="closeCreateModal()"><i class="bi bi-x-lg"></i></button>
+  <!-- Modal Crear Estudiante (sin campo codigo) -->
+  <div class="modal" *ngIf="showCreateModal" (click)="closeCreateModal()"><div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header"><h2><i class="bi bi-person-plus"></i> Nuevo Estudiante</h2><button class="close-btn" (click)="closeCreateModal()"><i class="bi bi-x-lg"></i></button></div>
+    <form (ngSubmit)="createStudent()">
+      <div class="form-row">
+        <div class="form-group"><label>DNI *</label><input type="text" [(ngModel)]="newStudent.dni" name="dni" required maxlength="8" minlength="8" placeholder="8 digitos"></div>
+        <div class="form-group"><label>Email *</label><input type="email" [(ngModel)]="newStudent.email" name="email" required></div>
       </div>
-      <form (ngSubmit)="createStudent()">
-        <div class="form-row">
-          <div class="form-group">
-            <label>Codigo *</label>
-            <input type="text" [(ngModel)]="newStudent.code" name="code" required>
-          </div>
-          <div class="form-group">
-            <label>DNI *</label>
-            <input type="text" [(ngModel)]="newStudent.dni" name="dni" required pattern="[0-9]{8}">
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Nombres *</label>
-            <input type="text" [(ngModel)]="newStudent.firstName" name="firstName" required>
-          </div>
-          <div class="form-group">
-            <label>Apellido Paterno *</label>
-            <input type="text" [(ngModel)]="newStudent.lastName" name="lastName" required>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Apellido Materno</label>
-            <input type="text" [(ngModel)]="newStudent.motherLastName" name="motherLastName">
-          </div>
-          <div class="form-group">
-            <label>Email *</label>
-            <input type="email" [(ngModel)]="newStudent.email" name="email" required>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Telefono</label>
-            <input type="text" [(ngModel)]="newStudent.phone" name="phone" pattern="9[0-9]{8}">
-          </div>
-          <div class="form-group">
-            <label>Grado *</label>
-            <select [(ngModel)]="newStudent.grade" name="grade">
-              <option value="1">1ro</option>
-              <option value="2">2do</option>
-              <option value="3">3ro</option>
-              <option value="4">4to</option>
-              <option value="5">5to</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Seccion *</label>
-            <input type="text" [(ngModel)]="newStudent.section" name="section" maxlength="2" required>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn-secondary" (click)="closeCreateModal()"><i class="bi bi-x-circle"></i> Cancelar</button>
-          <button type="submit" class="btn-primary" [disabled]="loading"><i class="bi bi-save"></i> Guardar</button>
-        </div>
-      </form>
-    </div>
-  </div>
+      <div class="form-row">
+        <div class="form-group"><label>Nombres *</label><input type="text" [(ngModel)]="newStudent.firstName" name="firstName" required></div>
+        <div class="form-group"><label>Apellido Paterno *</label><input type="text" [(ngModel)]="newStudent.lastName" name="lastName" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Apellido Materno</label><input type="text" [(ngModel)]="newStudent.motherLastName" name="motherLastName"></div>
+        <div class="form-group"><label>Telefono</label><input type="text" [(ngModel)]="newStudent.phone" name="phone" maxlength="9" placeholder="9XXXXXXXX"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Grado *</label><select [(ngModel)]="newStudent.grade" name="grade"><option *ngFor="let g of grados" [value]="g">{{ g }}ro</option></select></div>
+        <div class="form-group"><label>Seccion *</label><select [(ngModel)]="newStudent.section" name="section"><option *ngFor="let s of secciones" [value]="s">{{ s }}</option></select></div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn-secondary" (click)="closeCreateModal()">Cancelar</button><button type="submit" class="btn-primary" [disabled]="loading">Guardar</button></div>
+    </form>
+  </div></div>
 
-  <!-- Modal: Student Detail -->
-  <div class="modal modal-large" *ngIf="showDetailModal && selectedStudent" (click)="closeDetailModal()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h2><i class="bi bi-person-badge"></i> Detalle del Estudiante</h2>
-        <button class="close-btn" (click)="closeDetailModal()"><i class="bi bi-x-lg"></i></button>
+  <!-- Modal Editar Estudiante -->
+  <div class="modal" *ngIf="showEditModal" (click)="closeEditModal()"><div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header"><h2><i class="bi bi-pencil"></i> Editar Estudiante</h2><button class="close-btn" (click)="closeEditModal()"><i class="bi bi-x-lg"></i></button></div>
+    <form (ngSubmit)="updateStudent()">
+      <div class="form-row">
+        <div class="form-group"><label>Nombres *</label><input type="text" [(ngModel)]="editStudent.firstName" name="firstName" required></div>
+        <div class="form-group"><label>Apellido Paterno *</label><input type="text" [(ngModel)]="editStudent.lastName" name="lastName" required></div>
       </div>
-      
-      <div class="student-info">
-        <div class="info-grid">
-          <div><strong>Codigo:</strong> {{ selectedStudent.code }}</div>
-          <div><strong>DNI:</strong> {{ selectedStudent.dni }}</div>
-          <div><strong>Nombres:</strong> {{ selectedStudent.firstName }}</div>
-          <div><strong>Apellidos:</strong> {{ selectedStudent.lastName }} {{ selectedStudent.motherLastName }}</div>
-          <div><strong>Email:</strong> {{ selectedStudent.email }}</div>
-          <div><strong>Telefono:</strong> {{ selectedStudent.phone || '-' }}</div>
-          <div><strong>Grado:</strong> {{ selectedStudent.grade }}° "{{ selectedStudent.section }}"</div>
-          <div><strong>Estado:</strong> {{ getStatusText(selectedStudent.status) }}</div>
-        </div>
+      <div class="form-row">
+        <div class="form-group"><label>Apellido Materno</label><input type="text" [(ngModel)]="editStudent.motherLastName" name="motherLastName"></div>
+        <div class="form-group"><label>Email *</label><input type="email" [(ngModel)]="editStudent.email" name="email" required></div>
       </div>
+      <div class="form-row">
+        <div class="form-group"><label>Telefono</label><input type="text" [(ngModel)]="editStudent.phone" name="phone" maxlength="9"></div>
+        <div class="form-group"><label>Grado *</label><select [(ngModel)]="editStudent.grade" name="grade"><option *ngFor="let g of grados" [value]="g">{{ g }}ro</option></select></div>
+        <div class="form-group"><label>Seccion *</label><select [(ngModel)]="editStudent.section" name="section"><option *ngFor="let s of secciones" [value]="s">{{ s }}</option></select></div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn-secondary" (click)="closeEditModal()">Cancelar</button><button type="submit" class="btn-primary" [disabled]="loading">Actualizar</button></div>
+    </form>
+  </div></div>
 
-      <div class="detail-actions">
-        <button class="btn-primary" (click)="openTardinessModal()"><i class="bi bi-clock-history"></i> Registrar Tardanza</button>
-        <button class="btn-primary warning-btn" (click)="openWarningModal()"><i class="bi bi-exclamation-triangle"></i> Registrar Llamado</button>
-      </div>
+  <!-- Modal Detalle -->
+  <div class="modal modal-large" *ngIf="showDetailModal && selectedStudent" (click)="closeDetailModal()"><div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header"><h2><i class="bi bi-person-badge"></i> Detalle</h2><button class="close-btn" (click)="closeDetailModal()"><i class="bi bi-x-lg"></i></button></div>
+    <div class="student-info"><div class="info-grid"><div><strong>Codigo:</strong> {{ selectedStudent.code }}</div><div><strong>DNI:</strong> {{ selectedStudent.dni }}</div><div><strong>Nombres:</strong> {{ selectedStudent.firstName }}</div><div><strong>Apellidos:</strong> {{ selectedStudent.lastName }} {{ selectedStudent.motherLastName }}</div><div><strong>Email:</strong> {{ selectedStudent.email }}</div><div><strong>Telefono:</strong> {{ selectedStudent.phone || '-' }}</div><div><strong>Grado:</strong> {{ selectedStudent.grade }}°</div><div><strong>Seccion:</strong> {{ selectedStudent.section }}</div><div><strong>Estado:</strong> {{ getStatusText(selectedStudent.status) }}</div></div></div>
+    <div class="detail-actions"><button class="btn-primary" (click)="openEditModal(selectedStudent)"><i class="bi bi-pencil"></i> Editar</button><button class="btn-primary" (click)="openTardinessModal()"><i class="bi bi-clock-history"></i> Tardanza</button><button class="btn-primary" (click)="openWarningModal()"><i class="bi bi-exclamation-triangle"></i> Llamado</button></div>
+    <div class="detail-section"><h3><i class="bi bi-clock-history"></i> Tardanzas</h3><table class="subtable"><thead><tr><th>Fecha</th><th>Hora</th><th>Minutos</th><th>Justificada</th><th>Motivo</th></tr></thead><tbody><tr *ngFor="let t of studentTardiness"><td>{{ t.date | date:'dd/MM/yyyy' }}</td><td>{{ t.arrivalTime }}</td><td>{{ t.minutesLate }}</td><td>{{ t.justified ? 'Si' : 'No' }}</td><td>{{ t.reason || '-' }}</td></tr><tr *ngIf="studentTardiness.length === 0"><td colspan="5" class="text-center">No hay tardanzas</td></tr></tbody></table></div>
+    <div class="detail-section"><h3><i class="bi bi-exclamation-triangle"></i> Llamados</h3><table class="subtable"><thead><tr><th>Fecha</th><th>Tipo</th><th>Motivo</th><th>Registrado por</th></tr></thead><tbody><tr *ngFor="let w of studentWarnings"><td>{{ w.date | date:'dd/MM/yyyy HH:mm' }}</td><td><span class="warning-badge">{{ getWarningTypeText(w.type) }}</span></td><td>{{ w.reason }}</td><td>{{ w.registeredBy }}</td></tr><tr *ngIf="studentWarnings.length === 0"><td colspan="4" class="text-center">No hay llamados</td></tr></tbody></table></div>
+    <div class="modal-footer"><button class="btn-secondary" (click)="closeDetailModal()">Cerrar</button></div>
+  </div></div>
 
-      <div class="detail-section">
-        <h3><i class="bi bi-clock-history"></i> Historial de Tardanzas</h3>
-        <table class="subtable">
-          <thead>
-            <tr><th>Fecha</th><th>Hora</th><th>Minutos</th><th>Justificada</th><th>Motivo</th></tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let t of studentTardiness">
-              <td>{{ t.date | date:'dd/MM/yyyy' }}</td>
-              <td>{{ t.arrivalTime }}</td>
-              <td>{{ t.minutesLate }}</td>
-              <td>{{ t.justified ? 'Si' : 'No' }}</td>
-              <td>{{ t.reason || '-' }}</td>
-            </tr>
-            <tr *ngIf="studentTardiness.length === 0">
-              <td colspan="5" class="text-center"><i class="bi bi-inbox"></i> No hay tardanzas registradas</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+  <!-- Modal Tardanza -->
+  <div class="modal" *ngIf="showTardinessModal" (click)="closeTardinessModal()"><div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header"><h2><i class="bi bi-clock-history"></i> Registrar Tardanza</h2><button class="close-btn" (click)="closeTardinessModal()"><i class="bi bi-x-lg"></i></button></div>
+    <form (ngSubmit)="registerTardiness()"><div class="form-group"><label>Minutos *</label><input type="number" [(ngModel)]="tardinessForm.minutes" name="minutes" required min="1" max="60"></div><div class="form-group"><label>Motivo</label><textarea [(ngModel)]="tardinessForm.reason" name="reason" rows="3"></textarea></div><div class="form-group checkbox"><label><input type="checkbox" [(ngModel)]="tardinessForm.justified" name="justified"> Justificada</label></div><div class="modal-footer"><button type="button" class="btn-secondary" (click)="closeTardinessModal()">Cancelar</button><button type="submit" class="btn-primary" [disabled]="loading">Registrar</button></div></form>
+  </div></div>
 
-      <div class="detail-section">
-        <h3><i class="bi bi-exclamation-triangle"></i> Historial de Llamados de Atencion</h3>
-        <table class="subtable">
-          <thead>
-            <tr><th>Fecha</th><th>Tipo</th><th>Motivo</th><th>Registrado por</th></tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let w of studentWarnings">
-              <td>{{ w.date | date:'dd/MM/yyyy HH:mm' }}</td>
-              <td><span class="warning-badge">{{ getWarningTypeText(w.type) }}</span></td>
-              <td>{{ w.reason }}</td>
-              <td>{{ w.registeredBy }}</td>
-            </tr>
-            <tr *ngIf="studentWarnings.length === 0">
-              <td colspan="4" class="text-center"><i class="bi bi-inbox"></i> No hay llamados registrados</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn-secondary" (click)="closeDetailModal()"><i class="bi bi-x-circle"></i> Cerrar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: Register Tardiness -->
-  <div class="modal" *ngIf="showTardinessModal" (click)="closeTardinessModal()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h2><i class="bi bi-clock-history"></i> Registrar Tardanza</h2>
-        <button class="close-btn" (click)="closeTardinessModal()"><i class="bi bi-x-lg"></i></button>
-      </div>
-      <form (ngSubmit)="registerTardiness()">
-        <div class="form-group">
-          <label>Minutos de tardanza *</label>
-          <input type="number" [(ngModel)]="tardinessForm.minutes" name="minutes" required min="1" max="60">
-        </div>
-        <div class="form-group">
-          <label>Motivo</label>
-          <textarea [(ngModel)]="tardinessForm.reason" name="reason" rows="3" placeholder="Opcional"></textarea>
-        </div>
-        <div class="form-group checkbox">
-          <label>
-            <input type="checkbox" [(ngModel)]="tardinessForm.justified" name="justified">
-            <i class="bi bi-check-lg"></i> ¿Justificada?
-          </label>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn-secondary" (click)="closeTardinessModal()"><i class="bi bi-x-circle"></i> Cancelar</button>
-          <button type="submit" class="btn-primary" [disabled]="loading"><i class="bi bi-save"></i> Registrar</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Modal: Register Warning -->
-  <div class="modal" *ngIf="showWarningModal" (click)="closeWarningModal()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h2><i class="bi bi-exclamation-triangle"></i> Registrar Llamado de Atencion</h2>
-        <button class="close-btn" (click)="closeWarningModal()"><i class="bi bi-x-lg"></i></button>
-      </div>
-      <form (ngSubmit)="registerWarning()">
-        <div class="form-group">
-          <label>Tipo de Llamado *</label>
-          <select [(ngModel)]="warningForm.type" name="type">
-            <option value="L">LEVE</option>
-            <option value="G">GRAVE</option>
-            <option value="M">MUY GRAVE</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Motivo *</label>
-          <textarea [(ngModel)]="warningForm.reason" name="reason" rows="3" required></textarea>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn-secondary" (click)="closeWarningModal()"><i class="bi bi-x-circle"></i> Cancelar</button>
-          <button type="submit" class="btn-primary" [disabled]="loading"><i class="bi bi-save"></i> Registrar</button>
-        </div>
-      </form>
-    </div>
-  </div>
+  <!-- Modal Llamado -->
+  <div class="modal" *ngIf="showWarningModal" (click)="closeWarningModal()"><div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header"><h2><i class="bi bi-exclamation-triangle"></i> Registrar Llamado</h2><button class="close-btn" (click)="closeWarningModal()"><i class="bi bi-x-lg"></i></button></div>
+    <form (ngSubmit)="registerWarning()"><div class="form-group"><label>Tipo *</label><select [(ngModel)]="warningForm.type" name="type"><option value="L">LEVE</option><option value="G">GRAVE</option><option value="M">MUY GRAVE</option></select></div><div class="form-group"><label>Motivo *</label><textarea [(ngModel)]="warningForm.reason" name="reason" rows="3" required></textarea></div><div class="modal-footer"><button type="button" class="btn-secondary" (click)="closeWarningModal()">Cancelar</button><button type="submit" class="btn-primary" [disabled]="loading">Registrar</button></div></form>
+  </div></div>
 </div>

@@ -2,16 +2,13 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { Student, ApiResponse, Statistics, Tardiness, Warning, Report } from '../models/student.model';
+import { Student, ApiResponse, Statistics, Tardiness, Warning } from '../models/student.model';
 
-@Injectable({
-  providedIn: 'root'
-})
+@Injectable({ providedIn: 'root' })
 export class StudentService {
   private http = inject(HttpClient);
   private apiUrl = environment.apiUrl;
 
-  // Students
   getStudents(): Observable<Student[]> {
     return this.http.get<Student[]>(`${this.apiUrl}/students`);
   }
@@ -36,7 +33,10 @@ export class StudentService {
     return this.http.patch<ApiResponse<Student>>(`${this.apiUrl}/students/${id}/status?status=${status}`, {});
   }
 
-  // Tardiness
+  updateSection(id: number, grade: string, section: string): Observable<ApiResponse<Student>> {
+    return this.http.patch<ApiResponse<Student>>(`${this.apiUrl}/students/${id}/section?grade=${grade}&section=${section}`, {});
+  }
+
   registerTardiness(studentId: number, minutes: number, reason: string, justified: boolean): Observable<ApiResponse<Tardiness>> {
     return this.http.post<ApiResponse<Tardiness>>(`${this.apiUrl}/students/${studentId}/tardiness`, {
       minutes,
@@ -53,7 +53,6 @@ export class StudentService {
     return this.http.get<Tardiness[]>(`${this.apiUrl}/tardiness`);
   }
 
-  // Warnings
   registerWarning(studentId: number, type: string, reason: string): Observable<ApiResponse<Warning>> {
     return this.http.post<ApiResponse<Warning>>(`${this.apiUrl}/students/${studentId}/warning`, {
       type,
@@ -69,13 +68,12 @@ export class StudentService {
     return this.http.get<Warning[]>(`${this.apiUrl}/warnings`);
   }
 
-  // Statistics & Reports
   getStatistics(): Observable<ApiResponse<Statistics>> {
     return this.http.get<ApiResponse<Statistics>>(`${this.apiUrl}/statistics`);
   }
 
-  getStudentReport(studentId: number): Observable<ApiResponse<Report>> {
-    return this.http.get<ApiResponse<Report>>(`${this.apiUrl}/students/${studentId}/report`);
+  getStudentReport(studentId: number): Observable<ApiResponse<any>> {
+    return this.http.get<ApiResponse<any>>(`${this.apiUrl}/students/${studentId}/report`);
   }
 
   healthCheck(): Observable<ApiResponse<string>> {

@@ -53,10 +53,7 @@ export interface Warning {
   registeredBy: string;
 }
 
-export interface Report {
-  student: Student;
-  totalTardiness: number;
-  tardinessRecords: Tardiness[];
-  totalWarnings: number;
-  warningRecords: Warning[];
+export interface Section {
+  value: string;
+  label: string;
 }

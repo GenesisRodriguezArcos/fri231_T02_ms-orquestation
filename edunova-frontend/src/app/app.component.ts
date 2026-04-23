@@ -15,9 +15,6 @@ import { Student, Statistics, Tardiness, Warning } from './models/student.model'
 export class AppComponent implements OnInit {
   private studentService = inject(StudentService);
   
-  title = 'Edunova - Control de Tardanzas';
-  
-  // Data
   allStudents: Student[] = [];
   filteredStudents: Student[] = [];
   statistics: Statistics | null = null;
@@ -25,39 +22,41 @@ export class AppComponent implements OnInit {
   studentTardiness: Tardiness[] = [];
   studentWarnings: Warning[] = [];
   
-  // UI State
   loading = false;
   showCreateModal = false;
   showDetailModal = false;
+  showEditModal = false;
   showTardinessModal = false;
   showWarningModal = false;
-  
-  // Filter
   currentFilter: string = 'active';
   
-  // Forms
-  newStudent = {
-    code: '',
-    dni: '',
-    firstName: '',
-    lastName: '',
-    motherLastName: '',
-    email: '',
-    phone: '',
-    grade: '4',
-    section: 'A'
+  secciones = ['A', 'B', 'C', 'D', 'E'];
+  grados = ['1', '2', '3', '4', '5'];
+  
+  newStudent = { 
+    dni: '', 
+    firstName: '', 
+    lastName: '', 
+    motherLastName: '', 
+    email: '', 
+    phone: '', 
+    grade: '4', 
+    section: 'A' 
   };
   
-  tardinessForm = {
-    minutes: 0,
-    reason: '',
-    justified: false
+  editStudent = { 
+    id: 0, 
+    firstName: '', 
+    lastName: '', 
+    motherLastName: '', 
+    email: '', 
+    phone: '', 
+    grade: '4', 
+    section: 'A' 
   };
   
-  warningForm = {
-    type: 'L',
-    reason: ''
-  };
+  tardinessForm = { minutes: 0, reason: '', justified: false };
+  warningForm = { type: 'L', reason: '' };
 
   ngOnInit(): void {
     this.loadAll();
@@ -76,8 +75,8 @@ export class AppComponent implements OnInit {
         this.applyFilter();
         this.loading = false;
       },
-      error: (err) => {
-        Swal.fire('Error', 'Error al cargar estudiantes: ' + err.message, 'error');
+      error: () => {
+        Swal.fire('Error', 'Error al cargar estudiantes', 'error');
         this.loading = false;
       }
     });
@@ -86,29 +85,17 @@ export class AppComponent implements OnInit {
   loadStatistics(): void {
     this.studentService.getStatistics().subscribe({
       next: (response) => {
-        if (response.success) {
-          this.statistics = response.data;
-        }
-      },
-      error: (err) => console.error('Error loading statistics:', err)
+        if (response.success) this.statistics = response.data;
+      }
     });
   }
 
   applyFilter(): void {
     switch(this.currentFilter) {
-      case 'active':
-        this.filteredStudents = this.allStudents.filter(s => s.status === 'A');
-        break;
-      case 'inactive':
-        this.filteredStudents = this.allStudents.filter(s => s.status === 'I');
-        break;
-      case 'suspended':
-        this.filteredStudents = this.allStudents.filter(s => s.status === 'S');
-        break;
-      case 'all':
-      default:
-        this.filteredStudents = [...this.allStudents];
-        break;
+      case 'active': this.filteredStudents = this.allStudents.filter(s => s.status === 'A'); break;
+      case 'inactive': this.filteredStudents = this.allStudents.filter(s => s.status === 'I'); break;
+      case 'suspended': this.filteredStudents = this.allStudents.filter(s => s.status === 'S'); break;
+      default: this.filteredStudents = [...this.allStudents]; break;
     }
   }
 
@@ -117,43 +104,92 @@ export class AppComponent implements OnInit {
     this.applyFilter();
   }
 
-  getFilterCount(status: string): number {
-    return this.allStudents.filter(s => s.status === status).length;
-  }
-
   viewStudent(student: Student): void {
     this.selectedStudent = student;
     this.showDetailModal = true;
-    this.loadStudentDetails(student.id);
+    this.studentService.getTardinessByStudent(student.id).subscribe({
+      next: (data) => this.studentTardiness = data
+    });
+    this.studentService.getWarningsByStudent(student.id).subscribe({
+      next: (data) => this.studentWarnings = data
+    });
   }
 
-  loadStudentDetails(studentId: number): void {
-    this.studentService.getTardinessByStudent(studentId).subscribe({
-      next: (data) => this.studentTardiness = data,
-      error: (err) => console.error('Error loading tardiness:', err)
-    });
-    
-    this.studentService.getWarningsByStudent(studentId).subscribe({
-      next: (data) => this.studentWarnings = data,
-      error: (err) => console.error('Error loading warnings:', err)
+  openEditModal(student: Student): void {
+    this.editStudent = {
+      id: student.id,
+      firstName: student.firstName,
+      lastName: student.lastName,
+      motherLastName: student.motherLastName || '',
+      email: student.email,
+      phone: student.phone || '',
+      grade: student.grade,
+      section: student.section
+    };
+    this.showEditModal = true;
+  }
+
+  updateStudent(): void {
+    this.loading = true;
+    this.studentService.updateStudent(this.editStudent.id, {
+      firstName: this.editStudent.firstName,
+      lastName: this.editStudent.lastName,
+      motherLastName: this.editStudent.motherLastName,
+      email: this.editStudent.email,
+      phone: this.editStudent.phone,
+      grade: this.editStudent.grade,
+      section: this.editStudent.section
+    }).subscribe({
+      next: (response) => {
+        if (response.success) {
+          Swal.fire('Exito', response.message, 'success');
+          this.loadStudents();
+          this.closeEditModal();
+          if (this.selectedStudent?.id === this.editStudent.id) {
+            this.viewStudent(this.editStudent as Student);
+          }
+        }
+        this.loading = false;
+      },
+      error: () => {
+        Swal.fire('Error', 'Error al actualizar estudiante', 'error');
+        this.loading = false;
+      }
     });
   }
 
   createStudent(): void {
+    if (!this.newStudent.dni || this.newStudent.dni.length !== 8 || !/^\d+$/.test(this.newStudent.dni)) {
+      Swal.fire('Error', 'El DNI debe tener 8 digitos numericos', 'error');
+      return;
+    }
+    if (this.newStudent.phone && !/^9\d{8}$/.test(this.newStudent.phone)) {
+      Swal.fire('Error', 'El telefono debe comenzar con 9 y tener 9 digitos', 'error');
+      return;
+    }
+    
     this.loading = true;
-    this.studentService.createStudent(this.newStudent).subscribe({
+    this.studentService.createStudent({
+      dni: this.newStudent.dni,
+      firstName: this.newStudent.firstName,
+      lastName: this.newStudent.lastName,
+      motherLastName: this.newStudent.motherLastName,
+      email: this.newStudent.email,
+      phone: this.newStudent.phone,
+      grade: this.newStudent.grade,
+      section: this.newStudent.section
+    }).subscribe({
       next: (response) => {
         if (response.success) {
           Swal.fire('Exito', response.message, 'success');
           this.loadStudents();
           this.loadStatistics();
           this.closeCreateModal();
-          this.resetForms();
         }
         this.loading = false;
       },
-      error: (err) => {
-        Swal.fire('Error', err.error?.message || 'Error al crear estudiante', 'error');
+      error: () => {
+        Swal.fire('Error', 'Error al crear estudiante', 'error');
         this.loading = false;
       }
     });
@@ -161,25 +197,19 @@ export class AppComponent implements OnInit {
 
   registerTardiness(): void {
     if (!this.selectedStudent) return;
-    
     this.loading = true;
-    this.studentService.registerTardiness(
-      this.selectedStudent.id,
-      this.tardinessForm.minutes,
-      this.tardinessForm.reason,
-      this.tardinessForm.justified
-    ).subscribe({
+    this.studentService.registerTardiness(this.selectedStudent.id, this.tardinessForm.minutes, this.tardinessForm.reason, this.tardinessForm.justified).subscribe({
       next: (response) => {
         if (response.success) {
           Swal.fire('Exito', response.message, 'success');
-          this.loadStudentDetails(this.selectedStudent!.id);
+          this.viewStudent(this.selectedStudent!);
           this.loadStatistics();
           this.closeTardinessModal();
         }
         this.loading = false;
       },
-      error: (err) => {
-        Swal.fire('Error', err.error?.message || 'Error al registrar tardanza', 'error');
+      error: () => {
+        Swal.fire('Error', 'Error al registrar tardanza', 'error');
         this.loading = false;
       }
     });
@@ -187,46 +217,38 @@ export class AppComponent implements OnInit {
 
   registerWarning(): void {
     if (!this.selectedStudent) return;
-    
     this.loading = true;
-    this.studentService.registerWarning(
-      this.selectedStudent.id,
-      this.warningForm.type,
-      this.warningForm.reason
-    ).subscribe({
+    this.studentService.registerWarning(this.selectedStudent.id, this.warningForm.type, this.warningForm.reason).subscribe({
       next: (response) => {
         if (response.success) {
           Swal.fire('Exito', response.message, 'success');
-          this.loadStudentDetails(this.selectedStudent!.id);
+          this.viewStudent(this.selectedStudent!);
           this.loadStatistics();
           this.closeWarningModal();
         }
         this.loading = false;
       },
-      error: (err) => {
-        Swal.fire('Error', err.error?.message || 'Error al registrar llamado', 'error');
+      error: () => {
+        Swal.fire('Error', 'Error al registrar llamado', 'error');
         this.loading = false;
       }
     });
   }
 
-  async inactivateStudent(student: Student): Promise<void> {
+  async desactivarStudent(student: Student): Promise<void> {
     const result = await Swal.fire({
-      title: '¿Inactivar estudiante?',
-      text: `¿Deseas inactivar a ${student.firstName} ${student.lastName}?`,
+      title: '¿Desactivar estudiante?',
+      text: `¿Deseas desactivar a ${student.firstName} ${student.lastName}?`,
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#ffc107',
-      confirmButtonText: 'Si, inactivar',
+      confirmButtonText: 'Si, desactivar',
       cancelButtonText: 'Cancelar'
     });
-    
-    if (result.isConfirmed) {
-      this.updateStatus(student, 'I', 'inactivado');
-    }
+    if (result.isConfirmed) this.updateStatus(student, 'I', 'desactivado');
   }
 
-  async suspendStudent(student: Student): Promise<void> {
+  async suspenderStudent(student: Student): Promise<void> {
     const result = await Swal.fire({
       title: '¿Suspender estudiante?',
       text: `¿Deseas suspender a ${student.firstName} ${student.lastName}?`,
@@ -236,13 +258,10 @@ export class AppComponent implements OnInit {
       confirmButtonText: 'Si, suspender',
       cancelButtonText: 'Cancelar'
     });
-    
-    if (result.isConfirmed) {
-      this.updateStatus(student, 'S', 'suspendido');
-    }
+    if (result.isConfirmed) this.updateStatus(student, 'S', 'suspendido');
   }
 
-  async activateStudent(student: Student): Promise<void> {
+  async activarStudent(student: Student): Promise<void> {
     const result = await Swal.fire({
       title: '¿Activar estudiante?',
       text: `¿Deseas activar a ${student.firstName} ${student.lastName}?`,
@@ -252,23 +271,19 @@ export class AppComponent implements OnInit {
       confirmButtonText: 'Si, activar',
       cancelButtonText: 'Cancelar'
     });
-    
-    if (result.isConfirmed) {
-      this.updateStatus(student, 'A', 'activado');
-    }
+    if (result.isConfirmed) this.updateStatus(student, 'A', 'activado');
   }
 
-  async deleteStudent(student: Student): Promise<void> {
+  async eliminarStudent(student: Student): Promise<void> {
     const result = await Swal.fire({
       title: '¿Eliminar estudiante?',
-      text: `¿Deseas eliminar a ${student.firstName} ${student.lastName}? Esta accion no se puede deshacer.`,
+      text: `¿Eliminar a ${student.firstName} ${student.lastName}? No se puede deshacer.`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#dc3545',
       confirmButtonText: 'Si, eliminar',
       cancelButtonText: 'Cancelar'
     });
-    
     if (result.isConfirmed) {
       this.loading = true;
       this.studentService.deleteStudent(student.id).subscribe({
@@ -277,14 +292,12 @@ export class AppComponent implements OnInit {
             Swal.fire('Eliminado', response.message, 'success');
             this.loadStudents();
             this.loadStatistics();
-            if (this.selectedStudent?.id === student.id) {
-              this.closeDetailModal();
-            }
+            if (this.selectedStudent?.id === student.id) this.closeDetailModal();
           }
           this.loading = false;
         },
-        error: (err) => {
-          Swal.fire('Error', err.error?.message || 'Error al eliminar estudiante', 'error');
+        error: () => {
+          Swal.fire('Error', 'Error al eliminar estudiante', 'error');
           this.loading = false;
         }
       });
@@ -299,44 +312,34 @@ export class AppComponent implements OnInit {
           Swal.fire('Exito', response.message, 'success');
           this.loadStudents();
           this.loadStatistics();
-          if (this.selectedStudent?.id === student.id) {
-            this.selectedStudent.status = status;
-          }
+          if (this.selectedStudent?.id === student.id) this.selectedStudent.status = status;
         }
         this.loading = false;
       },
-      error: (err) => {
-        Swal.fire('Error', err.error?.message || `Error al ${action} estudiante`, 'error');
+      error: () => {
+        Swal.fire('Error', `Error al ${action} estudiante`, 'error');
         this.loading = false;
       }
     });
   }
 
   getStatusText(status: string): string {
-    const statusMap: Record<string, string> = { A: 'ACTIVO', I: 'INACTIVO', S: 'SUSPENDIDO' };
-    return statusMap[status] || 'DESCONOCIDO';
+    return status === 'A' ? 'ACTIVO' : status === 'I' ? 'DESACTIVADO' : 'SUSPENDIDO';
   }
 
   getWarningTypeText(type: string): string {
-    const typeMap: Record<string, string> = { L: 'LEVE', G: 'GRAVE', M: 'MUY GRAVE' };
-    return typeMap[type] || type;
+    return type === 'L' ? 'LEVE' : type === 'G' ? 'GRAVE' : 'MUY GRAVE';
   }
 
-  resetForms(): void {
-    this.newStudent = { code: '', dni: '', firstName: '', lastName: '', motherLastName: '', email: '', phone: '', grade: '4', section: 'A' };
-    this.tardinessForm = { minutes: 0, reason: '', justified: false };
-    this.warningForm = { type: 'L', reason: '' };
+  openCreateModal(): void { 
+    this.newStudent = { dni: '', firstName: '', lastName: '', motherLastName: '', email: '', phone: '', grade: '4', section: 'A' };
+    this.showCreateModal = true; 
   }
-
-  openCreateModal(): void { this.showCreateModal = true; }
-  closeCreateModal(): void { this.showCreateModal = false; this.resetForms(); }
-  
-  openDetailModal(student: Student): void { this.viewStudent(student); }
-  closeDetailModal(): void { this.showDetailModal = false; this.selectedStudent = null; this.studentTardiness = []; this.studentWarnings = []; }
-  
-  openTardinessModal(): void { this.showTardinessModal = true; }
-  closeTardinessModal(): void { this.showTardinessModal = false; this.tardinessForm = { minutes: 0, reason: '', justified: false }; }
-  
-  openWarningModal(): void { this.showWarningModal = true; }
-  closeWarningModal(): void { this.showWarningModal = false; this.warningForm = { type: 'L', reason: '' }; }
+  closeCreateModal(): void { this.showCreateModal = false; }
+  closeDetailModal(): void { this.showDetailModal = false; this.selectedStudent = null; }
+  closeEditModal(): void { this.showEditModal = false; }
+  openTardinessModal(): void { this.tardinessForm = { minutes: 0, reason: '', justified: false }; this.showTardinessModal = true; }
+  closeTardinessModal(): void { this.showTardinessModal = false; }
+  openWarningModal(): void { this.warningForm = { type: 'L', reason: '' }; this.showWarningModal = true; }
+  closeWarningModal(): void { this.showWarningModal = false; }
 }
