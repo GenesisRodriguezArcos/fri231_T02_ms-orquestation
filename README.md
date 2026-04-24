@@ -3,7 +3,7 @@
 ## 👥 Integrantes
 
 - Génesis de los Ángeles Rodriguez Arcos  
-- Luis Alberto Lopez Ordoñes  
+- Luis Alberto Ordoñez Lopez 
 - Victor Raul Torreblanca Franco  
 
 ---
